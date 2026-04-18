@@ -1,0 +1,11 @@
+{
+  "id": "CampfireBugFix",
+  "name": "CampfireBugFix",
+  "author": "",
+  "description": "修复了火堆bug被修复的bug",
+  "version": "1.0.0",
+  "has_pck": true,
+  "has_dll": true,
+  "dependencies": [],
+  "affects_gameplay": false
+}

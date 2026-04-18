@@ -1,0 +1,5 @@
+$buildRoot = Join-Path $root "build"
+$releaseDir = Join-Path $root "build\CampfireBugFix"
+$dllSource = Join-Path $root ".godot\mono\temp\bin\Debug\CampfireBugFix.dll"
+$pckSource = Join-Path $root "build\CampfireBugFix.pck"
+$manifestPathBeta = Join-Path $root "CampfireBugFix.json"

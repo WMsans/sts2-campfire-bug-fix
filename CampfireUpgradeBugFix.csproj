@@ -1,0 +1,17 @@
+<Project Sdk="Godot.NET.Sdk/4.5.1">
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <EnableDynamicLoading>true</EnableDynamicLoading>
+    <AssemblyName>CampfireBugFix</AssemblyName>
+    <RootNamespace>CampfireBugFix</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Reference Include="sts2">
+      <HintPath>sts2.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+
+    <PackageReference Include="Lib.Harmony" Version="2.3.6" />
+  </ItemGroup>
+</Project>
