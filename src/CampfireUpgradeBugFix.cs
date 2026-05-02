@@ -1,12 +1,24 @@
 using System;
 using System.Collections;
+using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
+using System.Threading.Tasks;
 using Godot;
 using HarmonyLib;
+using MegaCrit.Sts2.Core.CardSelection;
+using MegaCrit.Sts2.Core.Commands;
+using MegaCrit.Sts2.Core.Entities.Cards;
+using MegaCrit.Sts2.Core.Entities.Gold;
+using MegaCrit.Sts2.Core.Entities.Players;
+using MegaCrit.Sts2.Core.Localization;
 using MegaCrit.Sts2.Core.Logging;
+using MegaCrit.Sts2.Core.Models;
 using MegaCrit.Sts2.Core.Modding;
+using MegaCrit.Sts2.Core.Multiplayer.Game;
 using MegaCrit.Sts2.Core.Nodes.Screens.CardSelection;
 using MegaCrit.Sts2.Core.Nodes.Screens.ScreenContext;
+using MegaCrit.Sts2.Core.Runs;
 
 namespace CampfireUpgradeBugFix2;
 
@@ -345,4 +357,83 @@ internal static class Patch_Enchant_FocusedControlFromTopBar
 {
 	private static void Postfix(NDeckEnchantSelectScreen __instance, ref Control __result) =>
 		SharedPatchLogic.FocusedControlFromTopBarPostfix(__instance, ref __result, "Enchant");
+}
+
+[HarmonyPatch(typeof(OneOffSynchronizer), "DoMerchantCardRemoval")]
+internal static class Patch_OneOffSynchronizer_DoMerchantCardRemoval
+{
+	private static async Task<bool> DoMerchantCardRemovalMulti(Player player, int goldCost, bool cancelable)
+	{
+		int removableCount = PileType.Deck.GetPile(player).Cards.Count(c => c.IsRemovable);
+		if (removableCount <= 0)
+		{
+			return false;
+		}
+
+		CardSelectorPrefs prefs = new CardSelectorPrefs(CardSelectorPrefs.RemoveSelectionPrompt, 1, removableCount)
+		{
+			Cancelable = cancelable,
+			RequireManualConfirmation = true,
+		};
+
+		List<CardModel> selectedCards = (await CardSelectCmd.FromDeckForRemoval(player, prefs)).ToList();
+		if (selectedCards.Count == 0)
+		{
+			return false;
+		}
+
+		await PlayerCmd.LoseGold(goldCost, player, GoldLossType.Spent);
+		foreach (CardModel card in selectedCards)
+		{
+			await CardPileCmd.RemoveFromDeck(card);
+		}
+
+		player.ExtraFields.CardShopRemovalsUsed++;
+		return true;
+	}
+
+	private static bool Prefix(Player player, int goldCost, bool cancelable, ref Task<bool> __result)
+	{
+		__result = DoMerchantCardRemovalMulti(player, goldCost, cancelable);
+		return false;
+	}
+}
+
+[HarmonyPatch(typeof(RewardSynchronizer), "DoCardRemoval")]
+internal static class Patch_RewardSynchronizer_DoCardRemoval
+{
+	private static async Task<bool> DoCardRemovalMulti(Player player)
+	{
+		int removableCount = PileType.Deck.GetPile(player).Cards.Count(c => c.IsRemovable);
+		if (removableCount <= 0)
+		{
+			return false;
+		}
+
+		CardSelectorPrefs prefs = new CardSelectorPrefs(new LocString("gameplay_ui", "COMBAT_REWARD_CARD_REMOVAL.selectionScreenPrompt"), 1, removableCount)
+		{
+			Cancelable = true,
+			RequireManualConfirmation = true,
+		};
+
+		List<CardModel> selectedCards = (await CardSelectCmd.FromDeckForRemoval(player, prefs)).ToList();
+		if (selectedCards.Count == 0)
+		{
+			return false;
+		}
+
+		foreach (CardModel card in selectedCards)
+		{
+			await CardPileCmd.RemoveFromDeck(card);
+		}
+
+		Log.Warn($"[CampfireUpgradeBugFix2] Player {player.NetId} removed {selectedCards.Count} cards from deck via reward.");
+		return true;
+	}
+
+	private static bool Prefix(Player player, ref Task<bool> __result)
+	{
+		__result = DoCardRemovalMulti(player);
+		return false;
+	}
 }
