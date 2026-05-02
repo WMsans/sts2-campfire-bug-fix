@@ -147,62 +147,96 @@ internal static class ReflectUtil
 	}
 }
 
-[HarmonyPatch(typeof(NDeckUpgradeSelectScreen), "OnCardClicked")]
-internal static class Patch_OnCardClicked
+internal static class SharedPatchLogic
 {
-	private static void Postfix(NDeckUpgradeSelectScreen __instance)
+	internal static void OnCardClickedPostfix(Node instance, string label)
 	{
 		try
 		{
-			object grid = ReflectUtil.GetGrid(__instance);
+			object grid = ReflectUtil.GetGrid(instance);
 
 			if (grid == null)
 			{
-				Log.Warn("[CampfireUpgradeBugFix2] _grid not found.");
+				Log.Warn($"[CampfireUpgradeBugFix2] {label}: _grid not found.");
 				return;
 			}
 
-			// 0.103 原版会把这里设成 Disabled。
-			// 这里恢复成 0.99 近似状态。
 			ReflectUtil.SetEnumProperty(grid, "FocusBehaviorRecursive", "Inherited");
 
-			object lastSelectedCard = ReflectUtil.GetLastSelectedCard(__instance);
+			object lastSelectedCard = ReflectUtil.GetLastSelectedCard(instance);
 
-			// 第一次保留：把 holder/grid 的焦点关系种回去
 			if (lastSelectedCard != null)
 			{
-				RefocusCardHolder(grid, lastSelectedCard);
+				RefocusCardHolder(grid, lastSelectedCard, label);
 			}
 
-			// 刷新 screen context，让它重新识别 grid 的焦点来源
 			ActiveScreenContext.Instance.Update();
 
-			// 关键改动：
-			// 不再做第二次 RefocusCardHolder。
-			// 改成在更新完 context 之后，主动释放当前 GUI 焦点。
-			// 效果就是“选完第一张后表面上焦点消失”，
-			// 但下一次方向键仍会从 grid 的上下文继续导航。
-			Viewport vp = __instance.GetViewport();
+			Viewport vp = instance.GetViewport();
 			if (vp != null)
 			{
 				vp.GuiReleaseFocus();
 			}
 
-			Log.Warn("[CampfireUpgradeBugFix2] Seeded grid focus context, then released GUI focus.");
+			Log.Warn($"[CampfireUpgradeBugFix2] {label}: Seeded grid focus context, then released GUI focus.");
 		}
 		catch (Exception e)
 		{
-			Log.Error("[CampfireUpgradeBugFix2] Patch_OnCardClicked failed: " + e);
+			Log.Error($"[CampfireUpgradeBugFix2] {label} OnCardClicked failed: " + e);
 		}
 	}
 
-	private static void RefocusCardHolder(object grid, object card)
+	internal static void DefaultFocusedControlPostfix(Node instance, ref Control __result, string label)
+	{
+		try
+		{
+			if (__result != null)
+			{
+				return;
+			}
+
+			Control gridDefault = ReflectUtil.GetGridControlProperty(instance, "DefaultFocusedControl");
+
+			if (gridDefault != null)
+			{
+				__result = gridDefault;
+			}
+		}
+		catch (Exception e)
+		{
+			Log.Error($"[CampfireUpgradeBugFix2] {label} DefaultFocusedControl failed: " + e);
+		}
+	}
+
+	internal static void FocusedControlFromTopBarPostfix(Node instance, ref Control __result, string label)
+	{
+		try
+		{
+			if (__result != null)
+			{
+				return;
+			}
+
+			Control gridFocus = ReflectUtil.GetGridControlProperty(instance, "FocusedControlFromTopBar");
+
+			if (gridFocus != null)
+			{
+				__result = gridFocus;
+			}
+		}
+		catch (Exception e)
+		{
+			Log.Error($"[CampfireUpgradeBugFix2] {label} FocusedControlFromTopBar failed: " + e);
+		}
+	}
+
+	private static void RefocusCardHolder(object grid, object card, string label)
 	{
 		MethodInfo getCardHolder = ReflectUtil.FindMethod(grid.GetType(), "GetCardHolder", 1);
 
 		if (getCardHolder == null)
 		{
-			Log.Warn("[CampfireUpgradeBugFix2] GetCardHolder not found.");
+			Log.Warn($"[CampfireUpgradeBugFix2] {label}: GetCardHolder not found.");
 			return;
 		}
 
@@ -210,7 +244,7 @@ internal static class Patch_OnCardClicked
 
 		if (holder == null)
 		{
-			Log.Warn("[CampfireUpgradeBugFix2] card holder is null.");
+			Log.Warn($"[CampfireUpgradeBugFix2] {label}: card holder is null.");
 			return;
 		}
 
@@ -229,54 +263,86 @@ internal static class Patch_OnCardClicked
 	}
 }
 
-[HarmonyPatch(typeof(NDeckUpgradeSelectScreen), "get_DefaultFocusedControl")]
-internal static class Patch_DefaultFocusedControl
+[HarmonyPatch(typeof(NDeckUpgradeSelectScreen), "OnCardClicked")]
+internal static class Patch_Upgrade_OnCardClicked
 {
-	private static void Postfix(NDeckUpgradeSelectScreen __instance, ref Control __result)
-	{
-		try
-		{
-			if (__result != null)
-			{
-				return;
-			}
+	private static void Postfix(NDeckUpgradeSelectScreen __instance) =>
+		SharedPatchLogic.OnCardClickedPostfix(__instance, "Upgrade");
+}
 
-			Control gridDefault = ReflectUtil.GetGridControlProperty(__instance, "DefaultFocusedControl");
-
-			if (gridDefault != null)
-			{
-				__result = gridDefault;
-			}
-		}
-		catch (Exception e)
-		{
-			Log.Error("[CampfireUpgradeBugFix2] Patch_DefaultFocusedControl failed: " + e);
-		}
-	}
+[HarmonyPatch(typeof(NDeckUpgradeSelectScreen), "get_DefaultFocusedControl")]
+internal static class Patch_Upgrade_DefaultFocusedControl
+{
+	private static void Postfix(NDeckUpgradeSelectScreen __instance, ref Control __result) =>
+		SharedPatchLogic.DefaultFocusedControlPostfix(__instance, ref __result, "Upgrade");
 }
 
 [HarmonyPatch(typeof(NDeckUpgradeSelectScreen), "get_FocusedControlFromTopBar")]
-internal static class Patch_FocusedControlFromTopBar
+internal static class Patch_Upgrade_FocusedControlFromTopBar
 {
-	private static void Postfix(NDeckUpgradeSelectScreen __instance, ref Control __result)
-	{
-		try
-		{
-			if (__result != null)
-			{
-				return;
-			}
+	private static void Postfix(NDeckUpgradeSelectScreen __instance, ref Control __result) =>
+		SharedPatchLogic.FocusedControlFromTopBarPostfix(__instance, ref __result, "Upgrade");
+}
 
-			Control gridFocus = ReflectUtil.GetGridControlProperty(__instance, "FocusedControlFromTopBar");
+[HarmonyPatch(typeof(NDeckTransformSelectScreen), "OnCardClicked")]
+internal static class Patch_Transform_OnCardClicked
+{
+	private static void Postfix(NDeckTransformSelectScreen __instance) =>
+		SharedPatchLogic.OnCardClickedPostfix(__instance, "Transform");
+}
 
-			if (gridFocus != null)
-			{
-				__result = gridFocus;
-			}
-		}
-		catch (Exception e)
-		{
-			Log.Error("[CampfireUpgradeBugFix2] Patch_FocusedControlFromTopBar failed: " + e);
-		}
-	}
+[HarmonyPatch(typeof(NDeckTransformSelectScreen), "get_DefaultFocusedControl")]
+internal static class Patch_Transform_DefaultFocusedControl
+{
+	private static void Postfix(NDeckTransformSelectScreen __instance, ref Control __result) =>
+		SharedPatchLogic.DefaultFocusedControlPostfix(__instance, ref __result, "Transform");
+}
+
+[HarmonyPatch(typeof(NDeckTransformSelectScreen), "get_FocusedControlFromTopBar")]
+internal static class Patch_Transform_FocusedControlFromTopBar
+{
+	private static void Postfix(NDeckTransformSelectScreen __instance, ref Control __result) =>
+		SharedPatchLogic.FocusedControlFromTopBarPostfix(__instance, ref __result, "Transform");
+}
+
+[HarmonyPatch(typeof(NDeckCardSelectScreen), "OnCardClicked")]
+internal static class Patch_CardSelect_OnCardClicked
+{
+	private static void Postfix(NDeckCardSelectScreen __instance) =>
+		SharedPatchLogic.OnCardClickedPostfix(__instance, "CardSelect");
+}
+
+[HarmonyPatch(typeof(NDeckCardSelectScreen), "get_DefaultFocusedControl")]
+internal static class Patch_CardSelect_DefaultFocusedControl
+{
+	private static void Postfix(NDeckCardSelectScreen __instance, ref Control __result) =>
+		SharedPatchLogic.DefaultFocusedControlPostfix(__instance, ref __result, "CardSelect");
+}
+
+[HarmonyPatch(typeof(NDeckCardSelectScreen), "get_FocusedControlFromTopBar")]
+internal static class Patch_CardSelect_FocusedControlFromTopBar
+{
+	private static void Postfix(NDeckCardSelectScreen __instance, ref Control __result) =>
+		SharedPatchLogic.FocusedControlFromTopBarPostfix(__instance, ref __result, "CardSelect");
+}
+
+[HarmonyPatch(typeof(NDeckEnchantSelectScreen), "OnCardClicked")]
+internal static class Patch_Enchant_OnCardClicked
+{
+	private static void Postfix(NDeckEnchantSelectScreen __instance) =>
+		SharedPatchLogic.OnCardClickedPostfix(__instance, "Enchant");
+}
+
+[HarmonyPatch(typeof(NDeckEnchantSelectScreen), "get_DefaultFocusedControl")]
+internal static class Patch_Enchant_DefaultFocusedControl
+{
+	private static void Postfix(NDeckEnchantSelectScreen __instance, ref Control __result) =>
+		SharedPatchLogic.DefaultFocusedControlPostfix(__instance, ref __result, "Enchant");
+}
+
+[HarmonyPatch(typeof(NDeckEnchantSelectScreen), "get_FocusedControlFromTopBar")]
+internal static class Patch_Enchant_FocusedControlFromTopBar
+{
+	private static void Postfix(NDeckEnchantSelectScreen __instance, ref Control __result) =>
+		SharedPatchLogic.FocusedControlFromTopBarPostfix(__instance, ref __result, "Enchant");
 }
