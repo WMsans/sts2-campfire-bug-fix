@@ -16,6 +16,7 @@ using MegaCrit.Sts2.Core.Logging;
 using MegaCrit.Sts2.Core.Models;
 using MegaCrit.Sts2.Core.Modding;
 using MegaCrit.Sts2.Core.Multiplayer.Game;
+using MegaCrit.Sts2.Core.Nodes.Combat;
 using MegaCrit.Sts2.Core.Nodes.Screens.CardSelection;
 using MegaCrit.Sts2.Core.Nodes.Screens.ScreenContext;
 using MegaCrit.Sts2.Core.Runs;
@@ -357,6 +358,43 @@ internal static class Patch_Enchant_FocusedControlFromTopBar
 {
 	private static void Postfix(NDeckEnchantSelectScreen __instance, ref Control __result) =>
 		SharedPatchLogic.FocusedControlFromTopBarPostfix(__instance, ref __result, "Enchant");
+}
+
+[HarmonyPatch(typeof(NPlayerHand), "SelectCards")]
+internal static class Patch_NPlayerHand_SelectCards_Cancelable
+{
+	private static bool IsCancelableHandPrompt(CardSelectorPrefs prefs)
+	{
+		string key = prefs.Prompt?.LocEntryKey;
+		return key == "TO_DISCARD" || key == "TO_EXHAUST";
+	}
+
+	private static void Prefix(ref CardSelectorPrefs prefs)
+	{
+		try
+		{
+			if (!IsCancelableHandPrompt(prefs) || prefs.MinSelect <= 0)
+			{
+				return;
+			}
+
+			CardSelectorPrefs replacement = new CardSelectorPrefs(prefs.Prompt, 0, prefs.MaxSelect)
+			{
+				RequireManualConfirmation = true,
+				Cancelable = true,
+				Comparison = prefs.Comparison,
+				UnpoweredPreviews = prefs.UnpoweredPreviews,
+				PretendCardsCanBePlayed = prefs.PretendCardsCanBePlayed,
+				ShouldGlowGold = prefs.ShouldGlowGold,
+			};
+
+			prefs = replacement;
+		}
+		catch (Exception e)
+		{
+			Log.Error("[CampfireUpgradeBugFix2] Patch_NPlayerHand_SelectCards_Cancelable failed: " + e);
+		}
+	}
 }
 
 [HarmonyPatch(typeof(OneOffSynchronizer), "DoMerchantCardRemoval")]
