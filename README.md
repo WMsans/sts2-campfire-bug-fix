@@ -1,12 +1,52 @@
 # CampfireBugFix
 
-A mod for **Slay the Spire 2** that fixes focus and navigation bugs on campfire card selection screens (Upgrade, Transform, Card Select, and Enchant), and patches card removal logic for merchants and rewards.
+A mod for **Slay the Spire 2** that fixes focus and navigation bugs on campfire card selection screens (Upgrade, Transform, Card Select, and Enchant), patches card removal logic for merchants and rewards, and adds in-game console commands to edit run history and win streaks.
 
 ## What It Fixes
 
 - **Campfire screen focus bugs** — After selecting a card on Upgrade/Transform/Card Select/Enchant screens, focus would be lost or misrouted. This mod ensures the grid refocuses correctly and keyboard/gamepad navigation continues working.
 - **Merchant card removal** — Patches `OneOffSynchronizer.DoMerchantCardRemoval` to allow multi-card removal.
 - **Reward card removal** — Patches `RewardSynchronizer.DoCardRemoval` to allow multi-card removal from rewards.
+
+## New: Edit Run History & Streaks (console commands)
+
+This mod adds two console commands that let the player edit their run history and win streak numbers from inside the game. Open the in-game dev console (keys: `` ` `` / `'` / `*` / `^`, or `Shift+8`) and type:
+
+### `runhistory` — list, view, edit, delete run history entries
+
+```
+runhistory list                                  # list all entries (newest first)
+runhistory view <file>                           # show every field of one entry
+runhistory edit <file> <field> <value>           # change one field and re-save the entry
+runhistory delete <file>                         # permanently delete an entry (local + cloud)
+runhistory help
+```
+
+Editable fields: `win` (true/false), `was_abandoned` (true/false), `ascension` (int), `run_time` (seconds), `start_time` (unix seconds — renames the entry), `seed`, `build_id`, `game_mode` (Standard/Daily/Custom), `character` (e.g. `Character.IRONCLAD` or `Ironclad`), `killed_by_encounter`, `killed_by_event`. Tab-completion is available for files and fields.
+
+Examples:
+```
+runhistory list
+runhistory edit 1760000000.run win true
+runhistory edit 1760000000.run character Silent
+runhistory edit 1760000000.run ascension 7
+runhistory delete 1760000000.run
+```
+
+### `streak` — view and change win streak numbers
+
+```
+streak list                                      # current/best streak + wins/losses per character
+streak set <character> <n>                       # set the current win streak
+streak best <character> <n>                      # set the best win streak
+streak add <character> <delta>                   # adjust current streak by a delta (can be negative)
+streak recompute                                 # recalculate current/best streaks from run history
+streak help
+```
+
+Characters: `Ironclad`, `Silent`, `Regent`, `Necrobinder`, `Defect` (case-insensitive).
+
+`streak recompute` mirrors the game's own rules: only single-player runs count, daily/custom runs are ignored, wins extend the streak, and losses/abandoned runs reset it. Note that editing a history entry does **not** automatically change the win/loss totals or streaks stored in `progress.save` — use `streak recompute` (or `streak set`/`streak best`) to resync them.
 
 ## Prerequisites
 
