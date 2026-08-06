@@ -91,19 +91,25 @@ This produces `CampfireBugFix.dll` in `.godot/mono/temp/bin/Debug/`.
 
 ### 3. Pack the PCK
 
-The mod includes a GDScript-based packer. Run it headlessly from Godot:
+> **⚠️ IMPORTANT:** The PCK **must be built with Godot 4.5.x** (the same version the game ships).
+> Newer Godot versions (4.6/4.7+) write PCK format v4 which the game cannot load and the mod will fail with
+> `ERROR: Pack version unsupported: 4.` / `Godot errored while loading PCK file`.
+> On Linux, the STS2 community **MegaDot 4.5.1** fork works well.
+
+The mod includes a GDScript-based packer. Run it headlessly from Godot 4.5.x:
 
 **Windows:**
 ```
 "C:\Path\To\Godot_v4.5-stable_win64_console.exe" --headless --script tools\build_pck.gd
 ```
 
-**Linux:**
+**Linux (MegaDot 4.5.1):**
 ```bash
-# Standard Godot installation or self-contained binary
-godot --headless --script tools/build_pck.gd
+megadot --headless --script tools/build_pck.gd
+```
 
-# or with explicit path:
+**Linux (standard Godot 4.5):**
+```bash
 "/path/to/Godot_v4.5-stable_linux.x86_64" --headless --script tools/build_pck.gd
 ```
 
