@@ -324,7 +324,7 @@ public class RunHistoryEditConsoleCmd : AbstractConsoleCmd
 			"\n" +
 			"Editable fields:\n" +
 			"  win (true/false), was_abandoned (true/false), ascension (int), run_time (seconds),\n" +
-			"  start_time (unix seconds), seed (string), build_id (string), game_mode (Standard/Daily/Custom),\n" +
+			"  start_time (unix seconds), seed (string), build_id (string), game_mode (Standard/Daily/Dread/Blitz),\n" +
 			"  character (e.g. Character.IRONCLAD or Ironclad), killed_by_encounter, killed_by_event (id or 'none')\n" +
 			"\n" +
 			"Tip: 'streak recompute' recalculates current/best win streaks from the edited history.";

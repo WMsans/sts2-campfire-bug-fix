@@ -10,6 +10,7 @@ using MegaCrit.Sts2.Core.CardSelection;
 using MegaCrit.Sts2.Core.Commands;
 using MegaCrit.Sts2.Core.Entities.Cards;
 using MegaCrit.Sts2.Core.Entities.Gold;
+using MegaCrit.Sts2.Core.Entities.Merchant;
 using MegaCrit.Sts2.Core.Entities.Players;
 using MegaCrit.Sts2.Core.Localization;
 using MegaCrit.Sts2.Core.Logging;
@@ -397,10 +398,12 @@ internal static class Patch_NPlayerHand_SelectCards_Cancelable
 	}
 }
 
-[HarmonyPatch(typeof(OneOffSynchronizer), "DoMerchantCardRemoval")]
-internal static class Patch_OneOffSynchronizer_DoMerchantCardRemoval
+[HarmonyPatch(typeof(MerchantCardRemovalEntry), "DoCardRemoval")]
+internal static class Patch_MerchantCardRemovalEntry_DoCardRemoval
 {
-	private static async Task<bool> DoMerchantCardRemovalMulti(Player player, int goldCost, bool cancelable)
+	// Gold and the "used" flag are handled by MerchantCardRemovalEntry.OnTryPurchaseInternal,
+	// so this prefix only replaces the card selection + removal part.
+	private static async Task<bool> DoCardRemovalMulti(Player player, bool cancelable)
 	{
 		int removableCount = PileType.Deck.GetPile(player).Cards.Count(c => c.IsRemovable);
 		if (removableCount <= 0)
@@ -420,7 +423,6 @@ internal static class Patch_OneOffSynchronizer_DoMerchantCardRemoval
 			return false;
 		}
 
-		await PlayerCmd.LoseGold(goldCost, player, GoldLossType.Spent);
 		foreach (CardModel card in selectedCards)
 		{
 			await CardPileCmd.RemoveFromDeck(card);
@@ -430,15 +432,15 @@ internal static class Patch_OneOffSynchronizer_DoMerchantCardRemoval
 		return true;
 	}
 
-	private static bool Prefix(Player player, int goldCost, bool cancelable, ref Task<bool> __result)
+	private static bool Prefix(Player player, bool isCancelable, ref Task<bool> __result)
 	{
-		__result = DoMerchantCardRemovalMulti(player, goldCost, cancelable);
+		__result = DoCardRemovalMulti(player, isCancelable);
 		return false;
 	}
 }
 
-[HarmonyPatch(typeof(RewardSynchronizer), "DoCardRemoval")]
-internal static class Patch_RewardSynchronizer_DoCardRemoval
+[HarmonyPatch(typeof(RewardSynchronizer), "DoUnsyncedCardRemoval")]
+internal static class Patch_RewardSynchronizer_DoUnsyncedCardRemoval
 {
 	private static async Task<bool> DoCardRemovalMulti(Player player)
 	{

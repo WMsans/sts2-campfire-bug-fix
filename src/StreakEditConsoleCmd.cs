@@ -201,7 +201,7 @@ public class StreakEditConsoleCmd : AbstractConsoleCmd
 		foreach (KeyValuePair<string, RunHistory> pair in runs)
 		{
 			RunHistory history = pair.Value;
-			if (history.GameMode == GameMode.Daily || history.GameMode == GameMode.Custom)
+			if (history.GameMode == GameMode.Daily || history.IsCustomGame)
 			{
 				skippedGameMode++;
 				continue;
